@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import "./App.css";
 
+const API_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 function App() {
   const [sessionId, setSessionId] = useState("");
   const [message, setMessage] = useState("");
@@ -22,17 +25,20 @@ function App() {
     fetchConversation(storedSession);
   }, []);
 
-  // Auto scroll to bottom
+  // Auto scroll
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Fetch old messages from backend
+  // Fetch previous conversation
   const fetchConversation = async (id) => {
     try {
-      const res = await fetch(
-        `http://localhost:5000/api/conversations/${id}`
-      );
+      const res = await fetch(`${API_URL}/api/conversations/${id}`);
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch conversation");
+      }
+
       const data = await res.json();
       setMessages(data);
     } catch (error) {
@@ -44,7 +50,6 @@ function App() {
   const sendMessage = async () => {
     if (!message.trim()) return;
 
-    // Add user message instantly with timestamp
     const userMessage = {
       role: "user",
       content: message,
@@ -56,13 +61,20 @@ function App() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5000/api/chat", {
+      const res = await fetch(`${API_URL}/api/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ sessionId, message }),
+        body: JSON.stringify({
+          sessionId,
+          message,
+        }),
       });
+
+      if (!res.ok) {
+        throw new Error("Failed to send message");
+      }
 
       const data = await res.json();
 
@@ -75,12 +87,20 @@ function App() {
       setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
       console.error("Error sending message:", error);
+
+      const errorMessage = {
+        role: "assistant",
+        content: "Something went wrong. Please try again.",
+        created_at: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, errorMessage]);
     }
 
     setLoading(false);
   };
 
-  // Start new chat
+  // New chat
   const newChat = () => {
     const newSession = Date.now().toString();
     localStorage.setItem("sessionId", newSession);
@@ -118,7 +138,9 @@ function App() {
         })}
 
         {loading && (
-          <div className="message assistant">Assistant is typing...</div>
+          <div className="message assistant">
+            Assistant is typing...
+          </div>
         )}
 
         <div ref={chatEndRef}></div>
