@@ -1,0 +1,8 @@
+# Environment variables
+.env
+
+# SQLite database
+chat.db
+
+# Node dependencies
+node_modules
